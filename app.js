@@ -3,23 +3,64 @@ const API_KEY = '7403d43af6e4859b75c640135669225c';  // Replace with your actual
 const API_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
 // Function to fetch weather data
-function getWeather(city) {
+async function getWeather(city) {
+    // Show loading state
+    showLoading();
+
+    // Disable search button while loading
+    searchBtn.disabled = true;
+    searchBtn.textContent = 'Searching...';
+
     // Build the complete URL
     const url = `${API_URL}?q=${city}&appid=${API_KEY}&units=metric`;
     
-    // Make API call using Axios
-    axios.get(url)
-        .then(function(response) {
-            // Success! We got the data
-            console.log('Weather Data:', response.data);
-            displayWeather(response.data);
-        })
-        .catch(function(error) {
-            // Something went wrong
-            console.error('Error fetching weather:', error);
-            document.getElementById('weather-display').innerHTML = 
-                '<p class="loading">Could not fetch weather data. Please try again.</p>';
-        });
+    try {
+        // Make API call using Axios with await
+        const response = await axios.get(url);
+        
+        // Success! We got the data
+        console.log('Weather Data:', response.data);
+        displayWeather(response.data);
+    } catch (error) {
+        // Something went wrong
+        console.error('Error fetching weather:', error);
+        
+        if (error.response && error.response.status === 404) {
+            showError(`City "${city}" not found. Please check the spelling and try again.`);
+        } else {
+            showError('Something went wrong. Please try again later.');
+        }
+    } finally {
+        // Re-enable button
+        searchBtn.disabled = false;
+        searchBtn.innerHTML = '🔍 Search';
+    }
+}
+
+// Function to show loading state
+function showLoading() {
+    const loadingHTML = `
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Fetching weather data...</p>
+        </div>
+    `;
+    document.getElementById('weather-display').innerHTML = loadingHTML;
+}
+
+// Function to display error messages
+function showError(message) {
+    const errorHTML = `
+        <div class="error-message">
+            <span class="error-icon">⚠️</span>
+            <div class="error-content">
+                <h3>Oops!</h3>
+                <p>${message}</p>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('weather-display').innerHTML = errorHTML;
 }
 
 // Function to display weather data
@@ -43,7 +84,49 @@ function displayWeather(data) {
     
     // Put it on the page
     document.getElementById('weather-display').innerHTML = weatherHTML;
+
+    // Focus back on input for next search
+    cityInput.focus();
 }
 
-// Call the function when page loads
-getWeather('New York');  // You can change this to any city you like
+// --- Event Listeners ---
+
+const searchBtn = document.getElementById('search-btn');
+const cityInput = document.getElementById('city-input');
+
+// Function to handle search logic
+function handleSearch() {
+    const city = cityInput.value.trim();
+    
+    if (!city) {
+        showError('Please enter a city name.');
+        return;
+    }
+
+    if (city.length < 2) {
+        showError('City name too short. Please enter at least 2 characters.');
+        return;
+    }
+
+    getWeather(city);
+    cityInput.value = ''; // Clear input after search
+}
+
+// Click event for search button
+searchBtn.addEventListener('click', handleSearch);
+
+// Enter key support for input field
+cityInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        handleSearch();
+    }
+});
+
+// --- Initial Page Load ---
+
+// Show a welcome message instead of a default city
+document.getElementById('weather-display').innerHTML = `
+    <div class="welcome-message">
+        <p>Enter a city name above to get started! 🌍</p>
+    </div>
+`;
